@@ -1,0 +1,269 @@
+================================================================================
+模型权重检查报告
+================================================================================
+生成时间: 2025-12-31 15:19:28
+
+================================================================================
+总体统计
+================================================================================
+检查的文件数: 4
+总权重数量: 1462
+全为0的权重: 1404 (96.03%)
+正常权重: 58 (3.97%)
+
+================================================================================
+文件: model-00001-of-00004.safetensors
+================================================================================
+总权重数: 460
+全为0的权重: 432 (93.91%)
+正常权重: 28 (6.09%)
+
+按模块分类:
+  ✓ model.embed_tokens: 总数=1, 全0=0 (0.0%), 正常=1
+  ✓ model.latent_queries: 总数=1, 全0=0 (0.0%), 正常=1
+  ⚠️ model.layers: 总数=68, 全0=42 (61.8%), 正常=26
+  ⚠️ visual.blocks: 总数=384, 全0=384 (100.0%), 正常=0
+  ⚠️ visual.merger: 总数=5, 全0=5 (100.0%), 正常=0
+  ⚠️ visual.patch_embed: 总数=1, 全0=1 (100.0%), 正常=0
+
+关键层检查:
+  ✗ model.norm.weight: 未找到
+  ✗ model.layers.27.input_layernorm.weight: 未找到
+  ✗ model.layers.27.post_attention_layernorm.weight: 未找到
+  ✗ model.layers.27.self_attn.q_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.k_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.v_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.o_proj.weight: 未找到
+  ✗ model.layers.27.mlp.gate_proj.weight: 未找到
+  ✗ model.layers.27.mlp.up_proj.weight: 未找到
+  ✗ model.layers.27.mlp.down_proj.weight: 未找到
+  ✗ lm_head.weight: 未找到
+
+全为0的权重 (显示前20个，共432个):
+  ✗ model.layers.2.mlp.gate_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.2.mlp.up_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.2.post_attention_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.2.self_attn.k_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.2.self_attn.k_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.2.self_attn.o_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.2.self_attn.q_proj.bias: shape=torch.Size([3584])
+  ✗ model.layers.2.self_attn.q_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.2.self_attn.v_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.2.self_attn.v_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.3.input_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.3.mlp.down_proj.weight: shape=torch.Size([3584, 18944])
+  ✗ model.layers.3.mlp.gate_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.3.mlp.up_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.3.post_attention_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.3.self_attn.k_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.3.self_attn.k_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.3.self_attn.o_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.3.self_attn.q_proj.bias: shape=torch.Size([3584])
+  ✗ model.layers.3.self_attn.q_proj.weight: shape=torch.Size([3584, 3584])
+  ... 还有 412 个全0权重
+
+================================================================================
+文件: model-00002-of-00004.safetensors
+================================================================================
+总权重数: 131
+全为0的权重: 111 (84.73%)
+正常权重: 20 (15.27%)
+
+按模块分类:
+  ⚠️ model.layers: 总数=131, 全0=111 (84.7%), 正常=20
+
+关键层检查:
+  ✗ model.norm.weight: 未找到
+  ✗ model.layers.27.input_layernorm.weight: 未找到
+  ✗ model.layers.27.post_attention_layernorm.weight: 未找到
+  ✗ model.layers.27.self_attn.q_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.k_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.v_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.o_proj.weight: 未找到
+  ✗ model.layers.27.mlp.gate_proj.weight: 未找到
+  ✗ model.layers.27.mlp.up_proj.weight: 未找到
+  ✗ model.layers.27.mlp.down_proj.weight: 未找到
+  ✗ lm_head.weight: 未找到
+
+全为0的权重 (显示前20个，共111个):
+  ✗ model.layers.11.self_attn.q_proj.bias: shape=torch.Size([3584])
+  ✗ model.layers.11.self_attn.q_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.11.self_attn.v_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.11.self_attn.v_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.12.input_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.12.mlp.down_proj.weight: shape=torch.Size([3584, 18944])
+  ✗ model.layers.12.mlp.gate_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.12.mlp.up_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.12.post_attention_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.12.self_attn.k_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.12.self_attn.k_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.12.self_attn.o_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.12.self_attn.q_proj.bias: shape=torch.Size([3584])
+  ✗ model.layers.12.self_attn.q_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.12.self_attn.v_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.12.self_attn.v_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.13.input_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.13.mlp.down_proj.weight: shape=torch.Size([3584, 18944])
+  ✗ model.layers.13.mlp.gate_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.13.mlp.up_proj.weight: shape=torch.Size([18944, 3584])
+  ... 还有 91 个全0权重
+
+================================================================================
+文件: model-00003-of-00004.safetensors
+================================================================================
+总权重数: 122
+全为0的权重: 113 (92.62%)
+正常权重: 9 (7.38%)
+
+按模块分类:
+  ⚠️ model.layers: 总数=122, 全0=113 (92.6%), 正常=9
+
+关键层检查:
+  ✗ model.norm.weight: 未找到
+  ✗ model.layers.27.input_layernorm.weight: 未找到
+  ✗ model.layers.27.post_attention_layernorm.weight: 未找到
+  ✗ model.layers.27.self_attn.q_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.k_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.v_proj.weight: 未找到
+  ✗ model.layers.27.self_attn.o_proj.weight: 未找到
+  ✗ model.layers.27.mlp.gate_proj.weight: 未找到
+  ✗ model.layers.27.mlp.up_proj.weight: 未找到
+  ✗ model.layers.27.mlp.down_proj.weight: 未找到
+  ✗ lm_head.weight: 未找到
+
+全为0的权重 (显示前20个，共113个):
+  ✗ model.layers.17.post_attention_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.17.self_attn.k_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.17.self_attn.k_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.17.self_attn.o_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.17.self_attn.q_proj.bias: shape=torch.Size([3584])
+  ✗ model.layers.17.self_attn.q_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.17.self_attn.v_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.17.self_attn.v_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.18.input_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.18.mlp.down_proj.weight: shape=torch.Size([3584, 18944])
+  ✗ model.layers.18.mlp.gate_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.18.mlp.up_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.18.post_attention_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.18.self_attn.k_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.18.self_attn.k_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.18.self_attn.o_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.18.self_attn.q_proj.bias: shape=torch.Size([3584])
+  ✗ model.layers.18.self_attn.q_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.18.self_attn.v_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.18.self_attn.v_proj.weight: shape=torch.Size([512, 3584])
+  ... 还有 93 个全0权重
+
+================================================================================
+文件: model-00004-of-00004.safetensors
+================================================================================
+总权重数: 749
+全为0的权重: 748 (99.87%)
+正常权重: 1 (0.13%)
+
+按模块分类:
+  ✓ lm_head.weight: 总数=1, 全0=0 (0.0%), 正常=1
+  ⚠️ model.layers: 总数=15, 全0=15 (100.0%), 正常=0
+  ⚠️ model.navdp: 总数=732, 全0=732 (100.0%), 正常=0
+  ⚠️ model.norm: 总数=1, 全0=1 (100.0%), 正常=0
+
+关键层检查:
+  ✗ model.norm.weight:
+    Shape: torch.Size([3584])
+    Non-zero: 0 / 3584
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.input_layernorm.weight:
+    Shape: torch.Size([3584])
+    Non-zero: 0 / 3584
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.post_attention_layernorm.weight:
+    Shape: torch.Size([3584])
+    Non-zero: 0 / 3584
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.self_attn.q_proj.weight:
+    Shape: torch.Size([3584, 3584])
+    Non-zero: 0 / 12845056
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.self_attn.k_proj.weight:
+    Shape: torch.Size([512, 3584])
+    Non-zero: 0 / 1835008
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.self_attn.v_proj.weight:
+    Shape: torch.Size([512, 3584])
+    Non-zero: 0 / 1835008
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.self_attn.o_proj.weight:
+    Shape: torch.Size([3584, 3584])
+    Non-zero: 0 / 12845056
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.mlp.gate_proj.weight:
+    Shape: torch.Size([18944, 3584])
+    Non-zero: 0 / 67895296
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.mlp.up_proj.weight:
+    Shape: torch.Size([18944, 3584])
+    Non-zero: 0 / 67895296
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✗ model.layers.27.mlp.down_proj.weight:
+    Shape: torch.Size([3584, 18944])
+    Non-zero: 0 / 67895296
+    Mean: 0.000000, Std: 0.000000
+    ⚠️  全为 0!
+  ✓ lm_head.weight:
+    Shape: torch.Size([151668, 3584])
+    Non-zero: 387925696 / 543578112
+    Mean: -0.000060, Std: 0.010376
+
+全为0的权重 (显示前20个，共748个):
+  ✗ model.layers.26.input_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.26.mlp.down_proj.weight: shape=torch.Size([3584, 18944])
+  ✗ model.layers.26.post_attention_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.27.input_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.27.mlp.down_proj.weight: shape=torch.Size([3584, 18944])
+  ✗ model.layers.27.mlp.gate_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.27.mlp.up_proj.weight: shape=torch.Size([18944, 3584])
+  ✗ model.layers.27.post_attention_layernorm.weight: shape=torch.Size([3584])
+  ✗ model.layers.27.self_attn.k_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.27.self_attn.k_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.layers.27.self_attn.o_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.27.self_attn.q_proj.bias: shape=torch.Size([3584])
+  ✗ model.layers.27.self_attn.q_proj.weight: shape=torch.Size([3584, 3584])
+  ✗ model.layers.27.self_attn.v_proj.bias: shape=torch.Size([512])
+  ✗ model.layers.27.self_attn.v_proj.weight: shape=torch.Size([512, 3584])
+  ✗ model.navdp.action_head.bias: shape=torch.Size([3])
+  ✗ model.navdp.action_head.weight: shape=torch.Size([3, 384])
+  ✗ model.navdp.cond_pos_embed: shape=torch.Size([1, 34, 384])
+  ✗ model.navdp.critic_head.bias: shape=torch.Size([1])
+  ✗ model.navdp.critic_head.weight: shape=torch.Size([1, 384])
+  ... 还有 728 个全0权重
+
+================================================================================
+问题总结
+================================================================================
+⚠️  发现问题的文件:
+  - model-00001-of-00004.safetensors: 93.9% 的权重全为0
+  - model-00002-of-00004.safetensors: 84.7% 的权重全为0
+  - model-00003-of-00004.safetensors: 92.6% 的权重全为0
+  - model-00004-of-00004.safetensors: 99.9% 的权重全为0
+
+可能的原因:
+  1. 模型文件损坏
+  2. 模型文件未完整下载
+  3. 模型文件被错误初始化
+  4. 模型保存时出现问题
+
+建议:
+  1. 检查文件完整性（MD5/SHA256校验）
+  2. 重新下载有问题的文件
+  3. 联系模型提供者确认
+
+================================================================================

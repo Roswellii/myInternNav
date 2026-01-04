@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import argparse
 import json
 import os
@@ -85,18 +86,26 @@ if __name__ == '__main__':
     parser.add_argument("--resize_w", type=int, default=384)
     parser.add_argument("--resize_h", type=int, default=384)
     parser.add_argument("--num_history", type=int, default=8)
+    parser.add_argument("--plan_step_gap", type=int, default=8)
     args = parser.parse_args()
 
+    # Convert relative model_path to absolute path based on project root
+    if not os.path.isabs(args.model_path):
+        # Get project root directory (parent of internnav package)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        args.model_path = os.path.join(project_root, args.model_path)
+    
     args.camera_intrinsic = np.array(
         [[386.5, 0.0, 328.9, 0.0], [0.0, 386.5, 244, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
     )
     agent = InternVLAN1AsyncAgent(args)
+    agent.reset()  # Create save_dir before first step
     agent.step(
-        np.zeros((480, 640, 3)),
-        np.zeros((480, 640)),
+        np.zeros((480, 640, 3), dtype=np.uint8),
+        np.zeros((480, 640), dtype=np.float32),
         np.eye(4),
         "hello",
+        intrinsic=args.camera_intrinsic,
     )
-    agent.reset()
 
     app.run(host='0.0.0.0', port=5801)

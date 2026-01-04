@@ -3,8 +3,9 @@ import torch.nn as nn
 import numpy as np
 from internnav.model.utils.misc import rank0_print
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from diffusion_policy.model.diffusion.positional_embedding import SinusoidalPosEmb
 from internnav.model.encoder.navdp_backbone import *
+# SinusoidalPosEmb is already imported from navdp_backbone above
+# from diffusion_policy.model.diffusion.positional_embedding import SinusoidalPosEmb
 import random
 
 class NavDP_Policy_DPT_CriticSum_DAT(nn.Module):

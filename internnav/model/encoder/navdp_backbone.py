@@ -1,9 +1,46 @@
 import math
+import os
+from pathlib import Path
 
 import torch
 import torch.nn as nn
 
 from internnav.model.encoder.depth_anything.depth_anything_v2.dpt import DepthAnythingV2
+
+
+def _resolve_checkpoint_path(checkpoint_path):
+    """
+    解析检查点路径，如果是相对路径则转换为绝对路径（相对于项目根目录）
+    
+    Args:
+        checkpoint_path: 检查点路径（相对或绝对）
+    
+    Returns:
+        解析后的绝对路径
+    """
+    if os.path.isabs(checkpoint_path):
+        return checkpoint_path
+    
+    # 获取项目根目录（假设 internnav 在项目根目录下）
+    # 从 internnav/model/encoder/navdp_backbone.py 向上找到项目根目录
+    current_file = Path(__file__).resolve()
+    # internnav/model/encoder/navdp_backbone.py -> 项目根目录
+    project_root = current_file.parent.parent.parent.parent
+    resolved_path = project_root / checkpoint_path
+    
+    if not resolved_path.exists():
+        # 如果项目根目录下不存在，尝试在 checkpoints 目录下查找
+        checkpoint_name = Path(checkpoint_path).name
+        alt_path = project_root / "checkpoints" / checkpoint_name
+        if alt_path.exists():
+            return str(alt_path)
+        raise FileNotFoundError(
+            f"检查点文件不存在: {checkpoint_path}\n"
+            f"尝试的路径: {resolved_path}\n"
+            f"备用路径: {alt_path}"
+        )
+    
+    return str(resolved_path)
 
 
 class SinusoidalPosEmb(nn.Module):
@@ -121,7 +158,8 @@ class DAT_RGBD_Patch_Backbone(nn.Module):
 
         model_configs = {'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]}}
         self.rgb_model = DepthAnythingV2(**model_configs['vits'])
-        self.rgb_model.load_state_dict(torch.load(checkpoint), strict=False)
+        checkpoint_path = _resolve_checkpoint_path(checkpoint)
+        self.rgb_model.load_state_dict(torch.load(checkpoint_path), strict=False)
         self.rgb_model = self.rgb_model.pretrained
 
         self.preprocess_mean = torch.tensor([0.485, 0.456, 0.406], dtype=self.input_dtype)
@@ -228,7 +266,8 @@ class RGBDBackbone(nn.Module):
         model_configs = {'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]}}
         self.rgb_model = DepthAnythingV2(**model_configs['vits'])
         # TODO: Hack for navdp training using transformers 4.51.0 when loading the checkpoint
-        self.rgb_model.load_state_dict(torch.load(checkpoint), strict=False)
+        checkpoint_path = _resolve_checkpoint_path(checkpoint)
+        self.rgb_model.load_state_dict(torch.load(checkpoint_path), strict=False)
         self.rgb_model = self.rgb_model.pretrained.float()
         self.preprocess_mean = torch.tensor([0.485, 0.456, 0.406], dtype=torch.float32)
         self.preprocess_std = torch.tensor([0.229, 0.224, 0.225], dtype=torch.float32)

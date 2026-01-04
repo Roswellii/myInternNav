@@ -7,8 +7,6 @@ import torch
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-from internnav.utils.common_log_util import common_logger as logger
-
 
 def rank0_print(*args):
     if dist.is_initialized():
@@ -25,6 +23,9 @@ def set_random_seed(seed):
 
 
 def set_dropout(model, drop_p):
+    # 延迟导入，避免循环导入
+    from internnav.utils.common_log_util import common_logger as logger
+    
     for name, module in model.named_modules():
         # we might want to tune dropout for smaller dataset
         if isinstance(module, torch.nn.Dropout):
@@ -37,6 +38,9 @@ def set_cuda(opts, device) -> Tuple[bool, int, torch.device]:
     """
     Initialize CUDA for distributed computing
     """
+    # 延迟导入，避免循环导入
+    from internnav.utils.common_log_util import common_logger as logger
+    
     if not torch.cuda.is_available():
         assert opts.local_rank == -1, opts.local_rank
         return True, 0, torch.device('cpu')
