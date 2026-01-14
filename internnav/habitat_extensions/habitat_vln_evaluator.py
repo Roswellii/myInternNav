@@ -795,6 +795,7 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                     look_down_depth = torch.as_tensor(np.ascontiguousarray(look_down_depth)).float()
                     look_down_depth[look_down_depth > 5.0] = 5.0
                 else:
+                    print(f"[habitat_vln_evaluator] Image size before resize: {image.size} (W x H)")
                     image = image.resize((self.model_args.resize_w, self.model_args.resize_h))
                     rgb_list.append(image)
 

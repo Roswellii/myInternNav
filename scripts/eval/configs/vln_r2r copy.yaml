@@ -23,7 +23,7 @@ habitat:
           rgb_sensor:
             width: 640 
             height: 480
-            hfov: 79 #79
+            hfov: 79
             # position is set via camera_height in Python config file (habitat_dual_system_cfg.py)
           depth_sensor:
             width: 640

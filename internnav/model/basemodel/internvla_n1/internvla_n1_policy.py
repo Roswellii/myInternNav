@@ -98,6 +98,7 @@ class InternVLAN1Net(PreTrainedModel):
         # Need to be careful: look_down images are not added to rgb_list and won't be selected as history
         # 1. Preprocess input
         image = Image.fromarray(rgb).convert('RGB')
+        print(f"[s2_step] Image size before resize: {image.size} (W x H)")
         if not look_down:  # Don't add look_down images to rgb_list
             image = image.resize((self.resize_w, self.resize_h))
             self.rgb_list.append(image)

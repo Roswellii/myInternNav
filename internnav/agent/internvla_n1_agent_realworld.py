@@ -166,6 +166,7 @@ class InternVLAN1AsyncAgent:
 
     def step_s2(self, rgb, depth, pose, instruction, intrinsic, look_down=False):
         image = Image.fromarray(rgb).convert('RGB')
+        print(f"[step_s2] Image size before resize: {image.size} (W x H)")
         if not look_down:
             image = image.resize((self.resize_w, self.resize_h))
             self.rgb_list.append(image)
@@ -217,18 +218,11 @@ class InternVLAN1AsyncAgent:
         text = self.processor.apply_chat_template(self.conversation_history, tokenize=False, add_generation_prompt=True)
 
         inputs = self.processor(text=[text], images=self.input_images, return_tensors="pt").to(self.device)
+        print(f"[DEBUG] episode_idx={self.episode_idx-1}, num_images={len(self.input_images)}, input_ids_len={inputs.input_ids.shape[1]}")
         t0 = time.time()
+        # Match habitat policy implementation - no past_key_values, no return_dict_in_generate
         with torch.no_grad():
-            outputs = self.model.generate(
-                **inputs,
-                max_new_tokens=128,
-                do_sample=False,
-                use_cache=True,
-                past_key_values=self.past_key_values,
-                return_dict_in_generate=True,
-                raw_input_ids=copy.deepcopy(inputs.input_ids),
-            )
-        output_ids = outputs.sequences
+            output_ids = self.model.generate(**inputs, max_new_tokens=128, do_sample=False)
 
         t1 = time.time()
         
@@ -270,7 +264,6 @@ class InternVLAN1AsyncAgent:
             f.write(self.llm_output)
         
         self.last_output_ids = copy.deepcopy(output_ids[0])
-        self.past_key_values = copy.deepcopy(outputs.past_key_values)
         print(f"output {self.episode_idx}  {self.llm_output} cost: {t1 - t0}s")
         if bool(re.search(r'\d', self.llm_output)):
             coord = [int(c) for c in re.findall(r'\d+', self.llm_output)]
