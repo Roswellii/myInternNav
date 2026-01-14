@@ -38,7 +38,7 @@ def eval_dual():
     print(f"read http data cost {time.time() - start_time}")
 
     camera_pose = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-    instruction = "Turn around and walk out of this office. Turn towards your slight right at the chair. Move forward to the walkway and go near the red bin. You can see an open door on your right side, go inside the open door. Stop at the computer monitor"
+    instruction = "go farward and stop in front of the red backpack"
     policy_init = data['reset']
     if policy_init:
         start_time = time.time()
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, default="cuda:0")
-    parser.add_argument("--model_path", type=str, default="checkpoints/InternVLA-N1")
+    parser.add_argument("--model_path", type=str, default="checkpoints/InternVLA-N1-wo-dagger")
     parser.add_argument("--resize_w", type=int, default=384)
     parser.add_argument("--resize_h", type=int, default=384)
     parser.add_argument("--num_history", type=int, default=8)
@@ -108,4 +108,4 @@ if __name__ == '__main__':
         intrinsic=args.camera_intrinsic,
     )
 
-    app.run(host='0.0.0.0', port=5801)
+    app.run(host='192.168.123.22', port=5801)

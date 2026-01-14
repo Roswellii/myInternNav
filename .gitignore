@@ -152,3 +152,94 @@ checkpoints
 internnav/model/basemodel/LongCLIP/
 .gradio/
 result/
+
+# =====================================================
+# Large files - Models, Images, Data
+# =====================================================
+
+# Model weights and checkpoints
+*.bin
+*.safetensors
+*.h5
+*.hdf5
+*.onnx
+*.pb
+*.tflite
+*.pt
+
+# Image files
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+*.ico
+
+# Video files (already have *.mp4)
+*.avi
+*.mov
+*.mkv
+*.wmv
+*.flv
+
+# Audio files
+*.wav
+*.mp3
+*.flac
+*.aac
+
+# Compressed files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.rar
+*.7z
+*.gz
+*.bz2
+
+# Data files
+*.npy
+*.npz
+*.json.gz
+*.parquet
+*.feather
+*.arrow
+
+# 3D model files
+*.stl
+*.obj
+*.fbx
+*.glb
+*.gltf
+*.usd
+*.usda
+*.usdc
+*.usdz
+*.3mf
+*.STEP
+*.step
+*.stp
+
+# Debug and test directories with large files
+00_zyq_debug/
+scripts/realworld/
+
+# Assets with large files
+assets/*.tar.gz
+assets/*.gz
+
+# Scene data (large 3D scenes)
+data/scene_data/
+
+# Huggingface cache
+.cache/
+~/.cache/huggingface/
+
+# Weights & Biases
+wandb/
+
+# Jupyter outputs
+*.ipynb_checkpoints/

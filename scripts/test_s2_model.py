@@ -63,7 +63,7 @@ def load_test_data(data_dir, step_idx=1):
 def main():
     parser = argparse.ArgumentParser(description="测试 s2 模型")
     parser.add_argument("--device", type=str, default="cuda:0", help="设备 (cuda:0 或 cpu)")
-    parser.add_argument("--model_path", type=str, default="checkpoints/InternVLA-N1-wo-dagger", help="模型路径")
+    parser.add_argument("--model_path", type=str, default="checkpoints/InternVLA-N1", help="模型路径")
     parser.add_argument("--resize_w", type=int, default=384, help="图像宽度")
     parser.add_argument("--resize_h", type=int, default=384, help="图像高度")
     parser.add_argument("--num_history", type=int, default=8, help="历史帧数")
@@ -83,20 +83,6 @@ def main():
     )
     
     args = parser.parse_args()
-    
-    # 将模型路径转换为绝对路径
-    model_path = Path(args.model_path)
-    if not model_path.is_absolute():
-        # 如果是相对路径，相对于项目根目录
-        model_path = project_root / model_path
-    args.model_path = str(model_path.resolve())
-    
-    # 检查模型路径是否存在
-    if not Path(args.model_path).exists():
-        raise FileNotFoundError(
-            f"模型路径不存在: {args.model_path}\n"
-            f"请确保模型已下载到该路径，或使用 --model_path 指定正确的路径"
-        )
     
     # 设置相机内参（默认值，可以根据实际情况修改）
     args.camera_intrinsic = np.array(

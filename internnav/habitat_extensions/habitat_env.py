@@ -2,6 +2,22 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+# 在导入habitat之前设置EGL环境变量以使用NVIDIA GPU渲染
+# 覆盖conda环境中的Mesa配置，使用系统NVIDIA驱动
+os.environ['__EGL_VENDOR_LIBRARY_DIRS'] = '/usr/share/glvnd/egl_vendor.d'
+os.environ['__EGL_VENDOR_LIBRARY_FILENAMES'] = '/usr/share/glvnd/egl_vendor.d/10_nvidia.json'
+# 设置EGL设备
+if 'EGL_VISIBLE_DEVICES' not in os.environ:
+    os.environ['EGL_VISIBLE_DEVICES'] = '0'
+# 确保CUDA设备可见
+if 'CUDA_VISIBLE_DEVICES' not in os.environ:
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+# 设置库路径优先使用系统的NVIDIA库
+if 'LD_LIBRARY_PATH' in os.environ:
+    os.environ['LD_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu:' + os.environ['LD_LIBRARY_PATH']
+else:
+    os.environ['LD_LIBRARY_PATH'] = '/usr/lib/x86_64-linux-gnu'
+
 from internnav.configs.evaluator import EnvCfg, TaskCfg
 from internnav.env import base
 
@@ -25,7 +41,32 @@ class HabitatEnv(base.Env):
         super().__init__(env_config, task_config)
 
         self.config = env_config.env_settings['habitat_config']
-        self._env = Env(self.config)
+        
+        # 尝试创建环境，如果失败则尝试修改配置
+        try:
+            self._env = Env(self.config)
+        except Exception as e:
+            error_msg = str(e)
+            # 如果是OpenGL相关错误，尝试禁用渲染器
+            if "OpenGL" in error_msg or "GL::Context" in error_msg or "EGL" in error_msg:
+                print(f"警告: OpenGL初始化失败 ({error_msg[:100]})，尝试禁用渲染器...")
+                try:
+                    with habitat.config.read_write(self.config):
+                        if hasattr(self.config.habitat.simulator, 'habitat_sim_v0'):
+                            if hasattr(self.config.habitat.simulator.habitat_sim_v0, 'create_renderer'):
+                                self.config.habitat.simulator.habitat_sim_v0.create_renderer = False
+                            if hasattr(self.config.habitat.simulator.habitat_sim_v0, 'gpu_device_id'):
+                                self.config.habitat.simulator.habitat_sim_v0.gpu_device_id = -1
+                    self._env = Env(self.config)
+                    print("✓ 使用无渲染器模式成功创建环境（无可视化）")
+                except Exception as e2:
+                    raise RuntimeError(
+                        f"无法创建Habitat环境。OpenGL错误: {error_msg[:200]}。"
+                        f"尝试禁用渲染器也失败: {str(e2)[:200]}。"
+                        "建议：1) 重新安装habitat-sim 2) 使用Docker环境 3) 检查GPU驱动"
+                    ) from e2
+            else:
+                raise
 
         self.rank = env_config.env_settings.get('rank', 0)
         self.world_size = env_config.env_settings.get('world_size', 1)

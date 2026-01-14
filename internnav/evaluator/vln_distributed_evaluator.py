@@ -127,6 +127,22 @@ class VLNDistributedEvaluator(DistributedEvaluator):
 
     def get_action(self, obs, action):
         start_time = time()
+        
+        # Log observation details for debugging (first step only to avoid spam)
+        if len(obs) > 0 and not hasattr(self, '_logged_first_obs'):
+            first_obs = obs[0]
+            log.info(f"[Evaluator] Get action - observation keys: {list(first_obs.keys()) if isinstance(first_obs, dict) else 'N/A'}")
+            if isinstance(first_obs, dict):
+                for key, value in first_obs.items():
+                    if hasattr(value, 'shape'):
+                        log.info(f"[Evaluator] Observation '{key}' shape: {value.shape}, dtype: {value.dtype}")
+                        if 'rgb' in key.lower() or 'image' in key.lower():
+                            if hasattr(value, 'min') and hasattr(value, 'max'):
+                                log.info(f"[Evaluator] Observation '{key}' value range: [{value.min()}, {value.max()}]")
+                                if value.max() == 0:
+                                    log.warning(f"[Evaluator] WARNING: '{key}' image is completely black!")
+            self._logged_first_obs = True
+        
         # process obs
         obs = np.array(obs)
         fake_obs_index = np.logical_or(
@@ -164,6 +180,22 @@ class VLNDistributedEvaluator(DistributedEvaluator):
                 np.logical_and(self.runner_status == runner_status_code.NORMAL, action == {'h1': {'stop': []}})
             ] = runner_status_code.STOP
             obs, reward, terminated, truncated, info = self.env.step(action=action.tolist())
+            
+            # Log observation details after env step (first step only)
+            if len(obs) > 0 and not hasattr(self, '_logged_first_step_obs'):
+                first_obs = obs[0]
+                if isinstance(first_obs, dict):
+                    log.info(f"[Evaluator] After env step - observation keys: {list(first_obs.keys())}")
+                    for key, value in first_obs.items():
+                        if hasattr(value, 'shape'):
+                            log.info(f"[Evaluator] After step - '{key}' shape: {value.shape}, dtype: {value.dtype}")
+                            if 'rgb' in key.lower() or 'image' in key.lower():
+                                if hasattr(value, 'min') and hasattr(value, 'max'):
+                                    log.info(f"[Evaluator] After step - '{key}' value range: [{value.min()}, {value.max()}]")
+                                    if value.max() == 0:
+                                        log.warning(f"[Evaluator] WARNING: After step, '{key}' image is completely black!")
+                self._logged_first_step_obs = True
+            
             obs = self._obs_remove_robot_name(obs)
             finish_status = np.logical_or(
                 np.array([ob['finish_action'] for ob in obs]),

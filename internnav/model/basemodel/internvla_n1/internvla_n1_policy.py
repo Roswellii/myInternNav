@@ -21,7 +21,7 @@ class InternVLAN1Net(PreTrainedModel):
         
         self.model = InternVLAN1ForCausalLM.from_pretrained(
             self.model_config.model_path, torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2", device_map={"": self.model_config.device}
+            attn_implementation="sdpa", device_map={"": self.model_config.device}
         )
         
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_config.model_path, use_fast=True)

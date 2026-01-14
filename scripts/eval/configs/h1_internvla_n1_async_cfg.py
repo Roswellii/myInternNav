@@ -16,7 +16,7 @@ eval_cfg = EvalCfg(
         model_settings={
             'env_num': 1,
             'sim_num': 1,
-            'model_path': "checkpoints/InternVLA-N1",
+            'model_path': "checkpoints/InternVLA-N1-wo-dagger",
             'camera_intrinsic': [[585.0, 0.0, 320.0], [0.0, 585.0, 240.0], [0.0, 0.0, 1.0]],
             'width': 640,
             'height': 480,
@@ -40,7 +40,9 @@ eval_cfg = EvalCfg(
         env_type='internutopia',
         env_settings={
             'use_fabric': False,  # Please set use_fabric=False due to the render delay;
-            'headless': True,
+            'headless': False,
+            # Note: width/height removed - Isaac Sim handles viewport resolution internally
+            # The 320x240 issue is from camera viewport, not main window
         },
     ),
     task=TaskCfg(
@@ -75,7 +77,7 @@ eval_cfg = EvalCfg(
     eval_type='vln_distributed',
     eval_settings={
         'save_to_json': True,
-        'vis_output': False,
+        'vis_output': True,
         'use_agent_server': False,  # If use_agent_server=True, please start the agent server first.
     },
 )

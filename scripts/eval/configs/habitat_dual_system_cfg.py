@@ -6,7 +6,7 @@ eval_cfg = EvalCfg(
         model_name='internvla_n1',
         model_settings={
             "mode": "dual_system",  # inference mode: dual_system or system2
-            "model_path": "checkpoints/InternVLA-N1",  # path to model checkpoint
+            "model_path": "checkpoints/InternVLA-N1-wo-dagger",  # path to model checkpoint
             "num_future_steps": 4,  # number of future steps for prediction
             "num_frames": 32,  # number of frames used in evaluation
             "num_history": 8,
@@ -27,10 +27,11 @@ eval_cfg = EvalCfg(
     eval_type='habitat_vln',
     eval_settings={
         # all current parse args
-        "output_path": "./logs/habitat/test_dual_system",  # output directory for logs/results
-        "save_video": False,  # whether to save videos
+        "output_path": "./logs/habitat/test_dual_system_0114",  # output directory for logs/results
+        "save_video": True,  # whether to save videos
         "epoch": 0,  # epoch number for logging
         "max_steps_per_episode": 500,  # maximum steps per episode
+        "camera_height": 0.2,  # Camera height in meters (y-axis), set to 0.2m (low perspective)
         # distributed settings
         "port": "2333",  # communication port
         "dist_url": "env://",  # url for distributed setup

@@ -1,5 +1,6 @@
 import copy
 import itertools
+import json
 import os
 import re
 import sys
@@ -31,7 +32,7 @@ class InternVLAN1AsyncAgent:
         self.model = InternVLAN1ForCausalLM.from_pretrained(
             args.model_path,
             torch_dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            attn_implementation="sdpa",
             device_map={"": self.device},
         )
         self.model.eval()
@@ -230,11 +231,44 @@ class InternVLAN1AsyncAgent:
         output_ids = outputs.sequences
 
         t1 = time.time()
+        
+        # Decode output (skip special tokens for processing)
         self.llm_output = self.processor.tokenizer.decode(
             output_ids[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
         )
-        with open(f"{self.save_dir}/llm_output_{self.episode_idx: 04d}.txt", 'w') as f:
+        
+        # Decode full output including special tokens
+        llm_output_full = self.processor.tokenizer.decode(
+            output_ids[0][inputs.input_ids.shape[1] :], skip_special_tokens=False
+        )
+        
+        # Decode full sequence (input + output) including special tokens
+        full_sequence = self.processor.tokenizer.decode(
+            output_ids[0], skip_special_tokens=False
+        )
+        
+        # Save complete LLM output
+        llm_output_data = {
+            'episode_idx': self.episode_idx,
+            'timestamp': datetime.now().isoformat(),
+            'inference_time': t1 - t0,
+            'output_text_clean': self.llm_output,  # Clean output (skip special tokens)
+            'output_text_full': llm_output_full,   # Full output (include special tokens)
+            'full_sequence': full_sequence,         # Input + output (include special tokens)
+            'output_token_ids': output_ids[0][inputs.input_ids.shape[1] :].cpu().tolist(),  # Only new tokens
+            'full_token_ids': output_ids[0].cpu().tolist(),  # Input + output tokens
+            'input_length': inputs.input_ids.shape[1],
+            'output_length': output_ids[0].shape[0] - inputs.input_ids.shape[1],
+        }
+        
+        # Save as JSON for complete information
+        with open(f"{self.save_dir}/llm_output_{self.episode_idx: 04d}.json", 'w', encoding='utf-8') as f:
+            json.dump(llm_output_data, f, indent=2, ensure_ascii=False)
+        
+        # Also save text file for backward compatibility
+        with open(f"{self.save_dir}/llm_output_{self.episode_idx: 04d}.txt", 'w', encoding='utf-8') as f:
             f.write(self.llm_output)
+        
         self.last_output_ids = copy.deepcopy(output_ids[0])
         self.past_key_values = copy.deepcopy(outputs.past_key_values)
         print(f"output {self.episode_idx}  {self.llm_output} cost: {t1 - t0}s")

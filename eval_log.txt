@@ -1,0 +1,11 @@
+PROJECT_ROOT_PATH:/home/zhangwenqi/workspace/myInternNav
+pybullet build time: Dec 29 2025 14:05:24
+/home/zhangwenqi/workspace/myInternNav/./internnav/model/basemodel/LongCLIP/model/longclip.py:6: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import packaging
+xFormers not available
+xFormers not available
+Not using distributed mode
+2026-01-12 15:27:22,423 Initializing dataset R2RVLN-v1
+2026-01-12 15:27:22,451 initializing sim Sim-v0
+Platform::WindowlessEglApplication::tryCreateContext(): unable to find CUDA device 0 among 4 EGL devices in total
+WindowlessContext: Unable to create windowless context

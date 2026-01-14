@@ -273,9 +273,12 @@ class InternVLAN1ForCausalLM(Qwen2_5_VLForConditionalGeneration, InternVLAN1Meta
                 )
                 self.rope_deltas = rope_deltas
             elif n_image_tokens > 0:  # using only for kv cache
-                attention_mask = attention_mask[:, : raw_input_ids.shape[1]]
+                # Use raw_input_ids if available, otherwise fall back to input_ids
+                ids_for_rope = raw_input_ids if raw_input_ids is not None else input_ids
+                if attention_mask is not None:
+                    attention_mask = attention_mask[:, : ids_for_rope.shape[1]]
                 position_ids, rope_deltas = self.get_rope_index(
-                    raw_input_ids,
+                    ids_for_rope,
                     image_grid_thw,
                     video_grid_thw,
                     second_per_grid_ts,

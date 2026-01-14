@@ -10,24 +10,26 @@ import random
 import re
 from collections import OrderedDict
 
-import habitat
 import numpy as np
 import quaternion
 import torch
 import tqdm
-from depth_camera_filtering import filter_depth
-from habitat.config.default import get_agent_config
-from habitat.config.default_structured_configs import (
-    CollisionsMeasurementConfig,
-    FogOfWarConfig,
-    TopDownMapMeasurementConfig,
-)
-from habitat.tasks.nav.shortest_path_follower import ShortestPathFollower
-from habitat.utils.visualizations.utils import images_to_video, observations_to_image
-from habitat_baselines.config.default import get_config as get_habitat_config
 from PIL import Image, ImageDraw, ImageFont
 from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 from transformers.image_utils import to_numpy_array
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+
+try:
+    import matplotlib
+    matplotlib.use('TkAgg')  # Use TkAgg backend for display
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_AVAILABLE = True
+except (ImportError, Exception):
+    MATPLOTLIB_AVAILABLE = False
 
 from internnav.configs.evaluator import EvalCfg
 from internnav.evaluator import DistributedEvaluator, Evaluator
@@ -39,8 +41,29 @@ from internnav.model.utils.vln_utils import (
     traj_to_actions,
 )
 
-# Import for Habitat registry side effects — do not remove
-import internnav.habitat_extensions.measures  # noqa: F401 # isort: skip
+# Try to import habitat modules - delay import to allow registration even if habitat is not installed
+try:
+    import habitat
+    from depth_camera_filtering import filter_depth
+    from habitat.config.default import get_agent_config
+    from habitat.config.default_structured_configs import (
+        CollisionsMeasurementConfig,
+        FogOfWarConfig,
+        TopDownMapMeasurementConfig,
+    )
+    from habitat.tasks.nav.shortest_path_follower import ShortestPathFollower
+    from habitat.utils.visualizations.utils import images_to_video, observations_to_image
+    from habitat_baselines.config.default import get_config as get_habitat_config
+    # Import for Habitat registry side effects — do not remove
+    import internnav.habitat_extensions.measures  # noqa: F401 # isort: skip
+    HABITAT_AVAILABLE = True
+except ImportError:
+    HABITAT_AVAILABLE = False
+    # Import for Habitat registry side effects — do not remove
+    try:
+        import internnav.habitat_extensions.measures  # noqa: F401 # isort: skip
+    except ImportError:
+        pass
 
 DEFAULT_IMAGE_TOKEN = "<image>"
 
@@ -48,6 +71,13 @@ DEFAULT_IMAGE_TOKEN = "<image>"
 @Evaluator.register('habitat_vln')
 class HabitatVLNEvaluator(DistributedEvaluator):
     def __init__(self, cfg: EvalCfg):
+        # Check if habitat is available
+        if not HABITAT_AVAILABLE:
+            raise RuntimeError(
+                "Habitat modules are not available. "
+                "Please install habitat-sim and habitat-lab to use HabitatVLNEvaluator. "
+                "You can install them following the instructions at https://github.com/facebookresearch/habitat-sim"
+            )
         args = argparse.Namespace(**cfg.eval_settings)
         self.save_video = args.save_video
         self.epoch = args.epoch
@@ -73,7 +103,7 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                         draw_goal_positions=True,
                         draw_goal_aabbs=True,
                         fog_of_war=FogOfWarConfig(
-                            draw=True,
+                            draw=False,  # Disable fog of war to always show full map and goal
                             visibility_dist=5.0,
                             fov=90,
                         ),
@@ -81,6 +111,33 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                     "collisions": CollisionsMeasurementConfig(),
                 }
             )
+        # Enable renderer for visualization
+        with habitat.config.read_write(self.config):
+            if hasattr(self.config.habitat.simulator, 'habitat_sim_v0'):
+                if hasattr(self.config.habitat.simulator.habitat_sim_v0, 'create_renderer'):
+                    self.config.habitat.simulator.habitat_sim_v0.create_renderer = True
+                if hasattr(self.config.habitat.simulator.habitat_sim_v0, 'gpu_device_id'):
+                    # Use GPU for rendering if available
+                    self.config.habitat.simulator.habitat_sim_v0.gpu_device_id = 0
+            
+            # Allow custom camera height override from eval_settings
+            camera_height_override = cfg.eval_settings.get('camera_height', None)
+            if camera_height_override is not None:
+                # Modify camera sensor positions
+                main_agent = self.config.habitat.simulator.agents.main_agent
+                if hasattr(main_agent, 'sim_sensors'):
+                    if 'rgb_sensor' in main_agent.sim_sensors:
+                        if not hasattr(main_agent.sim_sensors.rgb_sensor, 'position') or main_agent.sim_sensors.rgb_sensor.position is None:
+                            main_agent.sim_sensors.rgb_sensor.position = [0.0, camera_height_override, 0.0]
+                        else:
+                            main_agent.sim_sensors.rgb_sensor.position[1] = camera_height_override
+                    if 'depth_sensor' in main_agent.sim_sensors:
+                        if not hasattr(main_agent.sim_sensors.depth_sensor, 'position') or main_agent.sim_sensors.depth_sensor.position is None:
+                            main_agent.sim_sensors.depth_sensor.position = [0.0, camera_height_override, 0.0]
+                        else:
+                            main_agent.sim_sensors.depth_sensor.position[1] = camera_height_override
+                print(f"Camera height set to: {camera_height_override}m")
+        
         cfg.env.env_settings['habitat_config'] = self.config
         cfg.env.env_settings['output_path'] = self.output_path
 
@@ -98,14 +155,14 @@ class HabitatVLNEvaluator(DistributedEvaluator):
             model = InternVLAN1ForCausalLM.from_pretrained(
                 self.model_args.model_path,
                 torch_dtype=torch.bfloat16,
-                attn_implementation="flash_attention_2",
+                attn_implementation="sdpa",
                 device_map={"": device},
             )
         elif self.model_args.mode == 'system2':
             model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
                 self.model_args.model_path,
                 torch_dtype=torch.bfloat16,
-                attn_implementation="flash_attention_2",
+                attn_implementation="sdpa",
                 device_map={"": device},
             )
         else:
@@ -275,11 +332,160 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                 os.path.join(self.output_path, f'check_sim_{self.epoch}', f'rgb_{self.rank}.jpg')
             )
 
+            # Display initial frame in visualization window
+            self.use_cv2 = False
+            self.use_matplotlib = False
+            
+            print("Checking visualization options...")
+            if CV2_AVAILABLE:
+                try:
+                    # Test if cv2.imshow actually works
+                    test_img = np.zeros((10, 10, 3), dtype=np.uint8)
+                    cv2.imshow('test', test_img)
+                    cv2.destroyAllWindows()
+                    self.use_cv2 = True
+                    print("OpenCV display test passed")
+                except Exception as e:
+                    self.use_cv2 = False
+                    print(f"OpenCV display test failed: {e}")
+            
+            if not self.use_cv2 and MATPLOTLIB_AVAILABLE:
+                self.use_matplotlib = True
+                print("Using Matplotlib for visualization")
+            elif not self.use_cv2 and not MATPLOTLIB_AVAILABLE:
+                print("Warning: Neither OpenCV nor Matplotlib available for visualization")
+            
+            # Get initial info for top-down map
+            initial_info = self.env.get_metrics()
+            initial_top_down_map = initial_info.get('top_down_map', None)
+            # Handle case where top_down_map might be a dict or None
+            if initial_top_down_map is not None and isinstance(initial_top_down_map, dict):
+                # If it's a dict, try to get the actual map array
+                initial_top_down_map = initial_top_down_map.get('map', None) if isinstance(initial_top_down_map, dict) else initial_top_down_map
+            # Ensure it's a numpy array if not None
+            if initial_top_down_map is not None and not isinstance(initial_top_down_map, np.ndarray):
+                try:
+                    initial_top_down_map = np.array(initial_top_down_map)
+                except Exception:
+                    initial_top_down_map = None
+            
+            if self.use_cv2:
+                try:
+                    rgb = observations['rgb']
+                    vis_img = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                    
+                    # Add text overlay with episode info and instruction
+                    y_offset = 30
+                    cv2.putText(vis_img, f'Episode: {scene_id}_{episode_id:04d}', (10, y_offset), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    y_offset += 35
+                    cv2.putText(vis_img, 'Initializing...', (10, y_offset), 
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    
+                    # Display full instruction (with word wrapping, no truncation)
+                    y_offset += 35
+                    instruction_text = episode_instruction  # Show full instruction
+                    words = instruction_text.split()
+                    lines = []
+                    current_line = ""
+                    for word in words:
+                        test_line = current_line + " " + word if current_line else word
+                        if len(test_line) > 60:  # Max characters per line
+                            if current_line:
+                                lines.append(current_line)
+                            current_line = word
+                        else:
+                            current_line = test_line
+                    if current_line:
+                        lines.append(current_line)
+                    
+                    # Display all lines (no limit)
+                    for i, line in enumerate(lines):
+                        if y_offset + i * 25 < rgb.shape[0] - 20:  # Don't overflow image
+                            cv2.putText(vis_img, line, (10, y_offset + i * 25), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                    
+                    # Add top-down map if available (keep full size, don't shrink too much)
+                    if initial_top_down_map is not None and isinstance(initial_top_down_map, np.ndarray):
+                        try:
+                            # Keep map at reasonable size but don't shrink too much
+                            map_height = rgb.shape[0]
+                            if len(initial_top_down_map.shape) >= 2:
+                                # Preserve aspect ratio, but ensure map is visible
+                                aspect_ratio = initial_top_down_map.shape[1] / initial_top_down_map.shape[0]
+                                map_width = int(map_height * aspect_ratio)
+                                # Limit max width to avoid too wide display
+                                max_map_width = rgb.shape[1] * 1.5  # 1.5x of RGB width
+                                if map_width > max_map_width:
+                                    map_width = int(max_map_width)
+                                    map_height = int(map_width / aspect_ratio)
+                                top_down_resized = cv2.resize(initial_top_down_map, (map_width, map_height))
+                                if len(top_down_resized.shape) == 2:
+                                    top_down_resized = cv2.cvtColor(top_down_resized, cv2.COLOR_GRAY2BGR)
+                                # Pad to match RGB height if needed
+                                if top_down_resized.shape[0] < rgb.shape[0]:
+                                    pad_height = rgb.shape[0] - top_down_resized.shape[0]
+                                    top_down_resized = cv2.copyMakeBorder(top_down_resized, 0, pad_height, 0, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+                                vis_img = np.hstack([vis_img, top_down_resized])
+                        except Exception as e:
+                            print(f"Warning: Failed to process initial top-down map: {e}")
+                    
+                    cv2.imshow('Habitat Navigation', vis_img)
+                    cv2.waitKey(1)
+                    print("Visualization window opened (OpenCV)")
+                except Exception as e:
+                    self.use_cv2 = False
+                    print(f"OpenCV display failed: {e}")
+            
+            if self.use_matplotlib:
+                try:
+                    plt.ion()  # Turn on interactive mode
+                    self.fig = plt.figure('Habitat Navigation', figsize=(24, 8))
+                    
+                    if initial_top_down_map is not None and isinstance(initial_top_down_map, np.ndarray):
+                        # Create three subplots: RGB, map, and annotated RGB
+                        self.ax1 = self.fig.add_subplot(131)
+                        self.ax2 = self.fig.add_subplot(132)
+                        self.ax3 = self.fig.add_subplot(133)
+                        self.ax1.imshow(observations['rgb'])
+                        self.ax1.set_title('RGB View', fontsize=10)
+                        self.ax1.axis('off')
+                        # Check if it's 2D or 3D array
+                        if len(initial_top_down_map.shape) == 2:
+                            self.ax2.imshow(initial_top_down_map, cmap='gray')
+                        else:
+                            self.ax2.imshow(initial_top_down_map)
+                        self.ax2.set_title('Top-Down Map', fontsize=10)
+                        self.ax2.axis('off')
+                        # Third subplot for annotated image (initially same as RGB)
+                        self.ax3.imshow(observations['rgb'])
+                        self.ax3.set_title('RGB with Pixel Goal', fontsize=10)
+                        self.ax3.axis('off')
+                        # Add full instruction to title (no truncation)
+                        self.fig.suptitle(f'Episode: {scene_id}_{episode_id:04d} - Initializing...\nInstruction: {episode_instruction}', 
+                                         fontsize=9, y=0.98)
+                    else:
+                        # Only RGB if no map available
+                        self.ax = self.fig.add_subplot(111)
+                        self.ax.imshow(observations['rgb'])
+                        self.ax.set_title(f'Episode: {scene_id}_{episode_id:04d} - Initializing...\nInstruction: {episode_instruction}', 
+                                         fontsize=9)
+                        self.ax.axis('off')
+                    
+                    plt.tight_layout()
+                    plt.draw()
+                    plt.pause(0.01)
+                    print("Visualization window opened (Matplotlib)")
+                except Exception as e:
+                    print(f"Warning: Failed to open matplotlib window: {e}")
+
             vis_frames = []
+            combined_frames = []  # List to store combined frames (RGB + map + annotated RGB)
             step_id = 0
 
             if self.save_video:
                 os.makedirs(os.path.join(self.output_path, f'vis_{self.epoch}', f'{scene_id}'), exist_ok=True)
+                os.makedirs(os.path.join(self.output_path, f'combined_{self.epoch}', f'{scene_id}'), exist_ok=True)
             initial_height = self.env._env.sim.get_agent_state().position[1]
 
             rgb_list = []
@@ -290,6 +496,9 @@ class HabitatVLNEvaluator(DistributedEvaluator):
             action = None
             messages = []
             local_actions = []
+            pixel_goal = None  # Initialize pixel_goal for visualization
+            last_pixel_goal = None  # Track last pixel goal to detect updates
+            last_annotated_rgb = None  # Store last annotated RGB image for OpenCV
 
             done = False
 
@@ -298,6 +507,263 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                 # refactor agent get action
                 rgb = observations["rgb"]
                 depth = observations["depth"]
+                
+                # Get info for top-down map
+                info = self.env.get_metrics()
+                top_down_map = info.get('top_down_map', None)
+                # Handle case where top_down_map might be a dict or None
+                if top_down_map is not None and isinstance(top_down_map, dict):
+                    # If it's a dict, try to get the actual map array
+                    top_down_map = top_down_map.get('map', None) if isinstance(top_down_map, dict) else top_down_map
+                # Ensure it's a numpy array if not None
+                if top_down_map is not None and not isinstance(top_down_map, np.ndarray):
+                    try:
+                        top_down_map = np.array(top_down_map)
+                    except Exception:
+                        top_down_map = None
+                
+                # Display visualization window with RGB and top-down map
+                if self.use_cv2:
+                    try:
+                        # Convert RGB to BGR for OpenCV display
+                        vis_img = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+                        
+                        # Add text overlay with step info
+                        y_offset = 30
+                        cv2.putText(vis_img, f'Step: {step_id}', (10, y_offset), 
+                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        y_offset += 30
+                        if action is not None:
+                            action_names = ['stop', 'move_forward', 'turn_left', 'turn_right', 'look_up', 'look_down']
+                            action_name = action_names[action] if action < len(action_names) else f'action_{action}'
+                            cv2.putText(vis_img, f'Action: {action_name}', (10, y_offset), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            y_offset += 30
+                        
+                        # Display full instruction (with word wrapping, no truncation)
+                        instruction_text = episode_instruction  # Show full instruction
+                        words = instruction_text.split()
+                        lines = []
+                        current_line = ""
+                        for word in words:
+                            test_line = current_line + " " + word if current_line else word
+                            if len(test_line) > 60:  # Max characters per line
+                                if current_line:
+                                    lines.append(current_line)
+                                current_line = word
+                            else:
+                                current_line = test_line
+                        if current_line:
+                            lines.append(current_line)
+                        
+                        # Display all lines (no limit, but check image bounds)
+                        for i, line in enumerate(lines):
+                            if y_offset + i * 25 < rgb.shape[0] - 20:  # Don't overflow image
+                                cv2.putText(vis_img, line, (10, y_offset + i * 25), 
+                                           cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+                        
+                        # Create annotated RGB image (third image) - only update when pixel_goal changes
+                        pixel_goal_updated = (pixel_goal is not None and pixel_goal != last_pixel_goal)
+                        
+                        if pixel_goal_updated:
+                            # Update annotated RGB when pixel_goal changes
+                            annotated_rgb = rgb.copy()
+                            try:
+                                annotated_rgb_bgr = cv2.cvtColor(annotated_rgb, cv2.COLOR_RGB2BGR)
+                                y_pixel, x_pixel = pixel_goal[0], pixel_goal[1]
+                                # Check if pixel coordinates are valid
+                                if 0 <= y_pixel < rgb.shape[0] and 0 <= x_pixel < rgb.shape[1]:
+                                    # Draw a circle at the pixel goal location
+                                    cv2.circle(annotated_rgb_bgr, (x_pixel, y_pixel), 10, (0, 0, 255), 3)  # Red circle
+                                    cv2.circle(annotated_rgb_bgr, (x_pixel, y_pixel), 3, (255, 255, 255), -1)  # White center
+                                    # Draw coordinate text near the point
+                                    coord_text = f'({x_pixel}, {y_pixel})'
+                                    text_size = cv2.getTextSize(coord_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+                                    text_x = max(0, min(x_pixel - text_size[0] // 2, rgb.shape[1] - text_size[0]))
+                                    text_y = max(text_size[1] + 5, y_pixel - 15)
+                                    # Draw background for text
+                                    cv2.rectangle(annotated_rgb_bgr, 
+                                                 (text_x - 5, text_y - text_size[1] - 5),
+                                                 (text_x + text_size[0] + 5, text_y + 5),
+                                                 (0, 0, 0), -1)
+                                    cv2.putText(annotated_rgb_bgr, coord_text, (text_x, text_y), 
+                                               cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)  # Cyan text
+                                    annotated_rgb = cv2.cvtColor(annotated_rgb_bgr, cv2.COLOR_BGR2RGB)
+                                    last_pixel_goal = pixel_goal.copy() if isinstance(pixel_goal, list) else pixel_goal
+                                    last_annotated_rgb = annotated_rgb.copy()  # Store for next iteration
+                            except Exception as e:
+                                if step_id == 0:
+                                    print(f"Warning: Failed to draw pixel goal: {e}")
+                                annotated_rgb = rgb.copy()  # Fallback to current RGB
+                        else:
+                            # Use last annotated RGB if available, otherwise use current RGB
+                            if last_annotated_rgb is not None:
+                                annotated_rgb = last_annotated_rgb.copy()
+                            else:
+                                annotated_rgb = rgb.copy()
+                        
+                        # Combine RGB, top-down map, and annotated RGB (three images)
+                        images_to_concat = [vis_img]  # Start with RGB image
+                        
+                        if top_down_map is not None and isinstance(top_down_map, np.ndarray):
+                            try:
+                                # Keep map at reasonable size
+                                map_height = rgb.shape[0]
+                                if len(top_down_map.shape) >= 2:
+                                    aspect_ratio = top_down_map.shape[1] / top_down_map.shape[0]
+                                    map_width = int(map_height * aspect_ratio)
+                                    max_map_width = rgb.shape[1]  # Same width as RGB
+                                    if map_width > max_map_width:
+                                        map_width = int(max_map_width)
+                                        map_height = int(map_width / aspect_ratio)
+                                    top_down_resized = cv2.resize(top_down_map, (map_width, map_height))
+                                    if len(top_down_resized.shape) == 2:
+                                        top_down_resized = cv2.cvtColor(top_down_resized, cv2.COLOR_GRAY2BGR)
+                                    if top_down_resized.shape[0] < rgb.shape[0]:
+                                        pad_height = rgb.shape[0] - top_down_resized.shape[0]
+                                        top_down_resized = cv2.copyMakeBorder(top_down_resized, 0, pad_height, 0, 0, cv2.BORDER_CONSTANT, value=[0, 0, 0])
+                                    images_to_concat.append(top_down_resized)
+                            except Exception as e:
+                                if step_id == 0:
+                                    print(f"Warning: Failed to process top-down map: {e}")
+                        
+                        # Add annotated RGB as third image
+                        annotated_rgb_bgr = cv2.cvtColor(annotated_rgb, cv2.COLOR_RGB2BGR)
+                        images_to_concat.append(annotated_rgb_bgr)
+                        
+                        # Concatenate all images horizontally
+                        vis_img = np.hstack(images_to_concat)
+                        
+                        cv2.imshow('Habitat Navigation', vis_img)
+                        key = cv2.waitKey(1) & 0xFF  # Non-blocking wait
+                        if key == ord('q'):  # Press 'q' to quit
+                            print("Visualization window closed by user")
+                            break
+                    except Exception as e:
+                        if step_id == 0:
+                            print(f"OpenCV display failed: {e}")
+                        pass
+                elif self.use_matplotlib:
+                    try:
+                        action_text = ""
+                        if action is not None:
+                            action_names = ['stop', 'move_forward', 'turn_left', 'turn_right', 'look_up', 'look_down']
+                            action_text = action_names[action] if action < len(action_names) else f'action_{action}'
+                        
+                        # Create combined visualization with RGB, top-down map, and annotated RGB
+                        if top_down_map is not None and isinstance(top_down_map, np.ndarray):
+                            try:
+                                # Check if pixel_goal was updated
+                                pixel_goal_updated = (pixel_goal is not None and pixel_goal != last_pixel_goal)
+                                
+                                # Only clear and recreate if needed (for first time or if layout changed)
+                                if not hasattr(self, 'ax1') or not hasattr(self, 'ax2') or not hasattr(self, 'ax3'):
+                                    self.fig.clear()
+                                    # Create three subplots: RGB, map, and annotated RGB
+                                    self.ax1 = self.fig.add_subplot(131)
+                                    self.ax2 = self.fig.add_subplot(132)
+                                    self.ax3 = self.fig.add_subplot(133)
+                                
+                                # Update RGB view (always)
+                                self.ax1.clear()
+                                self.ax1.imshow(rgb)
+                                self.ax1.set_title('RGB View', fontsize=10)
+                                self.ax1.axis('off')
+                                
+                                # Update top-down map (always)
+                                self.ax2.clear()
+                                if len(top_down_map.shape) == 2:
+                                    self.ax2.imshow(top_down_map, cmap='gray')
+                                else:
+                                    self.ax2.imshow(top_down_map)
+                                self.ax2.set_title('Top-Down Map', fontsize=10)
+                                self.ax2.axis('off')
+                                
+                                # Update annotated RGB only when pixel_goal changes
+                                if pixel_goal_updated:
+                                    self.ax3.clear()
+                                    self.ax3.imshow(rgb)
+                                    try:
+                                        y_pixel, x_pixel = pixel_goal[0], pixel_goal[1]
+                                        if 0 <= y_pixel < rgb.shape[0] and 0 <= x_pixel < rgb.shape[1]:
+                                            self.ax3.plot(x_pixel, y_pixel, 'ro', markersize=12, markeredgewidth=2, markeredgecolor='red', markerfacecolor='white')
+                                            coord_text = f'({x_pixel}, {y_pixel})'
+                                            self.ax3.text(x_pixel, y_pixel - 20, coord_text, 
+                                                       fontsize=10, color='cyan', weight='bold',
+                                                       bbox=dict(boxstyle='round', facecolor='black', alpha=0.7))
+                                        last_pixel_goal = pixel_goal.copy() if isinstance(pixel_goal, list) else pixel_goal
+                                    except Exception as e:
+                                        if step_id == 0:
+                                            print(f"Warning: Failed to draw pixel goal in matplotlib: {e}")
+                                    self.ax3.set_title('RGB with Pixel Goal', fontsize=10)
+                                    self.ax3.axis('off')
+                                    # Force redraw of third subplot
+                                    plt.draw()
+                            except Exception as e:
+                                # If map display fails, just show RGB
+                                if step_id == 0:
+                                    print(f"Warning: Failed to display top-down map: {e}")
+                                self.fig.clear()
+                                self.ax = self.fig.add_subplot(111)
+                                self.ax.imshow(rgb)
+                                # Draw pixel goal on image if available
+                                if pixel_goal is not None:
+                                    try:
+                                        y_pixel, x_pixel = pixel_goal[0], pixel_goal[1]
+                                        if 0 <= y_pixel < rgb.shape[0] and 0 <= x_pixel < rgb.shape[1]:
+                                            self.ax.plot(x_pixel, y_pixel, 'ro', markersize=12, markeredgewidth=2, markeredgecolor='red', markerfacecolor='white')
+                                            coord_text = f'({x_pixel}, {y_pixel})'
+                                            self.ax.text(x_pixel, y_pixel - 20, coord_text, 
+                                                       fontsize=10, color='cyan', weight='bold',
+                                                       bbox=dict(boxstyle='round', facecolor='black', alpha=0.7))
+                                    except Exception:
+                                        pass
+                                self.ax.set_title(f'Step: {step_id} | Action: {action_text} | Episode: {scene_id}_{episode_id:04d}\nInstruction: {episode_instruction}', 
+                                                 fontsize=9)
+                                self.ax.axis('off')
+                            
+                            # Add full instruction to title (no truncation)
+                            self.fig.suptitle(f'Step: {step_id} | Action: {action_text} | Episode: {scene_id}_{episode_id:04d}\nInstruction: {episode_instruction}', 
+                                             fontsize=9, y=0.98)
+                        else:
+                            # Only RGB if no map available
+                            self.ax = self.fig.add_subplot(111)
+                            self.ax.imshow(rgb)
+                            # Draw pixel goal on image if available
+                            if pixel_goal is not None:
+                                try:
+                                    y_pixel, x_pixel = pixel_goal[0], pixel_goal[1]
+                                    if 0 <= y_pixel < rgb.shape[0] and 0 <= x_pixel < rgb.shape[1]:
+                                        self.ax.plot(x_pixel, y_pixel, 'ro', markersize=12, markeredgewidth=2, markeredgecolor='red', markerfacecolor='white')
+                                        coord_text = f'({x_pixel}, {y_pixel})'
+                                        self.ax.text(x_pixel, y_pixel - 20, coord_text, 
+                                                   fontsize=10, color='cyan', weight='bold',
+                                                   bbox=dict(boxstyle='round', facecolor='black', alpha=0.7))
+                                except Exception:
+                                    pass
+                            self.ax.set_title(f'Step: {step_id} | Action: {action_text} | Episode: {scene_id}_{episode_id:04d}\nInstruction: {episode_instruction}', 
+                                             fontsize=9)
+                            self.ax.axis('off')
+                        
+                        plt.tight_layout()
+                        plt.draw()
+                        plt.pause(0.01)  # Small pause to update display
+                        
+                        # Save matplotlib figure as image for combined video
+                        if self.save_video:
+                            try:
+                                # Get figure as numpy array
+                                self.fig.canvas.draw()
+                                fig_data = np.frombuffer(self.fig.canvas.tostring_rgb(), dtype=np.uint8)
+                                fig_data = fig_data.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
+                                combined_frames.append(fig_data)
+                            except Exception as e:
+                                if step_id == 0:
+                                    print(f"Warning: Failed to save matplotlib figure: {e}")
+                    except Exception as e:
+                        if step_id == 0:
+                            print(f"Matplotlib display failed: {e}")
+                        pass
                 x, y = observations["gps"]
                 camera_yaw = observations["compass"][0]
                 depth = filter_depth(depth.reshape(depth.shape[:2]), blur_type=None)
@@ -564,6 +1030,8 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                         continue
                 else:
                     action = 0
+                    # Reset pixel_goal when action is 0 (stop)
+                    pixel_goal = None
 
                 if info['top_down_map'] is not None:
                     if save_dot:
@@ -575,6 +1043,13 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                         vis_frames.append(frame)
 
                 print("step_id", step_id, "action", action)
+
+                # Render visualization window
+                try:
+                    self.env.render()
+                except Exception as e:
+                    # If rendering fails, continue without visualization
+                    pass
 
                 # refactor: core
                 if action == 5:
@@ -626,9 +1101,31 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                     fps=6,
                     quality=9,
                 )
+                # Save combined video (RGB + top-down map + annotated RGB)
+                if combined_frames:
+                    images_to_video(
+                        combined_frames,
+                        os.path.join(self.output_path, f'combined_{self.epoch}', f'{scene_id}'),
+                        f'{episode_id:04d}',
+                        fps=6,
+                        quality=9,
+                    )
             vis_frames.clear()
+            combined_frames.clear()
 
         self.env.close()
+        
+        # Close visualization windows
+        if hasattr(self, 'use_cv2') and self.use_cv2:
+            try:
+                cv2.destroyAllWindows()
+            except Exception:
+                pass
+        if hasattr(self, 'use_matplotlib') and self.use_matplotlib:
+            try:
+                plt.close('all')
+            except Exception:
+                pass
 
         return (
             torch.tensor(sucs).to(self.device),

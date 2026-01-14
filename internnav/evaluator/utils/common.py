@@ -463,6 +463,13 @@ def obs_to_image(obs_lst, action, output_path: str, reference_path, normalize: b
     rgb_array = first_obs['rgb']
     topdown_array = first_obs['topdown_rgb']
 
+    # Debug: Check camera data
+    if len(obs_lst) == 1 or obs_lst[-1] == first_obs:  # Only print for first frame
+        print(f"[DEBUG] RGB array - shape: {rgb_array.shape}, dtype: {rgb_array.dtype}, "
+              f"min: {rgb_array.min():.3f}, max: {rgb_array.max():.3f}, mean: {rgb_array.mean():.3f}")
+        print(f"[DEBUG] Topdown array - shape: {topdown_array.shape}, dtype: {topdown_array.dtype}, "
+              f"min: {topdown_array.min():.3f}, max: {topdown_array.max():.3f}, mean: {topdown_array.mean():.3f}")
+
     # draw array on rgb array
     rgb_array = cv2.resize(draw_action_pil(rgb_array, action), (256, 256))
 

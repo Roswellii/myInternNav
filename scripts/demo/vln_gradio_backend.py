@@ -195,7 +195,7 @@ if __name__ == "__main__":
 
     device = torch.device(f"cuda:{local_rank}")
     model = InternVLAN1ForCausalLM.from_pretrained(
-        args.model_path, torch_dtype=torch.bfloat16, attn_implementation="flash_attention_2", device_map={"": device}
+        args.model_path, torch_dtype=torch.bfloat16, attn_implementation="sdpa", device_map={"": device}
     )
     model.eval()
     world_size = get_world_size()

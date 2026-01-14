@@ -90,7 +90,7 @@ def load_model_and_processor(model_path, device="cuda:0"):
         model_path,
         config=config,  # 使用加载的配置
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
+        attn_implementation="sdpa",
         device_map={"": device},
         local_files_only=local_files_only,
         trust_remote_code=True,  # 可能需要信任远程代码
@@ -272,7 +272,7 @@ def test_with_simple_image(model, processor, device):
 
 def main():
     parser = argparse.ArgumentParser(description="测试InternVLA-N1模型的文本生成能力")
-    parser.add_argument("--model_path", type=str, default="checkpoints/InternVLA-N1",
+    parser.add_argument("--model_path", type=str, default="checkpoints/InternVLA-N1-wo-dagger",
                         help="模型路径")
     parser.add_argument("--device", type=str, default="cuda:0",
                         help="设备 (cuda:0, cpu等)")

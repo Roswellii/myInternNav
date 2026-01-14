@@ -37,3 +37,12 @@ nslookup conda.anaconda.org 2>&1 | head -5 || echo "如果仍然失败，请检�
 
 
 
+
+
+
+
+
+
+
+
+

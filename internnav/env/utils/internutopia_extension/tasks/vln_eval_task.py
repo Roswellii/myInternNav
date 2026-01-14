@@ -1,6 +1,7 @@
 from internutopia.core.task import BaseTask
 
 from internnav.evaluator.utils.common import set_seed
+from internnav.utils.common_log_util import common_logger as log
 
 from ..configs.tasks.vln_eval_task import VLNEvalTaskCfg
 from .utils import DoneChecker
@@ -75,7 +76,33 @@ class VLNEvalTask(BaseTask):
         self.down_disk_light_position.Set(Gf.Vec3f(new_position[0], new_position[1], new_position[2] + raise_light))
 
     def load(self):
+        from internnav.utils.common_log_util import common_logger as log
+        
+        # Log scene information before loading
+        scene_asset_path = getattr(self.config, 'scene_asset_path', None)
+        if scene_asset_path:
+            log.info(f"[VLNEvalTask] Loading scene from: {scene_asset_path}")
+            import os
+            if os.path.exists(scene_asset_path):
+                log.info(f"[VLNEvalTask] Scene file exists: {os.path.getsize(scene_asset_path)} bytes")
+            else:
+                log.error(f"[VLNEvalTask] Scene file NOT found: {scene_asset_path}")
+        else:
+            log.warning("[VLNEvalTask] No scene_asset_path in config!")
+        
         super().load()
+        
+        # Verify scene was loaded
+        import omni.usd
+        stage = omni.usd.get_context().get_stage()
+        scene_prims = [prim for prim in stage.Traverse() if 'Scene' in str(prim.GetPath()) or 'scene' in str(prim.GetPath()).lower()]
+        if scene_prims:
+            log.info(f"[VLNEvalTask] Found {len(scene_prims)} scene prims in stage")
+            for prim in scene_prims[:5]:  # Log first 5
+                log.info(f"[VLNEvalTask] Scene prim: {prim.GetPath()}")
+        else:
+            log.warning("[VLNEvalTask] No scene prims found in stage! Scene may not be loaded.")
+        
         self.robot_name = list(self.robots.keys())[0]
         self.create_light()
         self.done_checker = DoneChecker(
@@ -104,9 +131,29 @@ class VLNEvalTask(BaseTask):
             if self.env_id == 0:
                 rep.orchestrator.step(rt_subframes=2, delta_time=0.0, pause_timeline=False)
             cur_obs = camera.get_data()
-            rgb_info = cur_obs['rgba'][..., :3]
-
             import numpy as np
+            
+            # Debug: Check RGBA and RGB data
+            rgba_data = cur_obs.get('rgba', None) if isinstance(cur_obs, dict) else getattr(cur_obs, 'rgba', None)
+            if rgba_data is not None:
+                log.info(f"[VLNEvalTask] RGBA shape: {rgba_data.shape}, dtype: {rgba_data.dtype}")
+                log.info(f"[VLNEvalTask] RGBA stats - min: {rgba_data.min()}, max: {rgba_data.max()}, mean: {rgba_data.mean():.2f}")
+                
+                # Extract RGB from RGBA
+                rgb_info = rgba_data[..., :3].copy()  # Use copy to avoid view issues
+                
+                log.info(f"[VLNEvalTask] RGB shape: {rgb_info.shape}, dtype: {rgb_info.dtype}")
+                log.info(f"[VLNEvalTask] RGB stats - min: {rgb_info.min()}, max: {rgb_info.max()}, mean: {rgb_info.mean():.2f}")
+                
+                # Check if RGB is all zeros
+                if rgb_info.max() == 0:
+                    log.error("[VLNEvalTask] WARNING: RGB image is completely black (all zeros)!")
+                    log.error(f"[VLNEvalTask] RGBA channel 0 stats: min={rgba_data[..., 0].min()}, max={rgba_data[..., 0].max()}")
+                    log.error(f"[VLNEvalTask] RGBA channel 1 stats: min={rgba_data[..., 1].min()}, max={rgba_data[..., 1].max()}")
+                    log.error(f"[VLNEvalTask] RGBA channel 2 stats: min={rgba_data[..., 2].min()}, max={rgba_data[..., 2].max()}")
+            else:
+                log.error("[VLNEvalTask] ERROR: No RGBA data in camera observation!")
+                rgb_info = np.zeros((480, 640, 3), dtype=np.uint8)
 
             from internnav.evaluator.utils.common import norm_depth
 

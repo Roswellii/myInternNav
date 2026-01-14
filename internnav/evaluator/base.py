@@ -36,4 +36,15 @@ class Evaluator:
         """
         Init a evaluator instance from a config.
         """
+        if config.eval_type not in cls.evaluators:
+            error_msg = f"Evaluator type '{config.eval_type}' is not registered. Available evaluators: {list(cls.evaluators.keys())}"
+            if config.eval_type.startswith('habitat'):
+                error_msg += (
+                    f"\n\nHabitat evaluators require additional dependencies. "
+                    f"If you're trying to use '{config.eval_type}', please ensure:\n"
+                    f"1. Habitat-sim and habitat-lab are installed\n"
+                    f"2. depth_camera_filtering is installed: pip install git+https://github.com/naokiyokoyama/depth_camera_filtering.git\n"
+                    f"3. All habitat extensions are properly imported"
+                )
+            raise KeyError(error_msg)
         return cls.evaluators[config.eval_type](config)
