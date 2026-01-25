@@ -28,3 +28,10 @@ echo "  xhost -local:root"
 
 
 
+
+
+
+
+
+
+

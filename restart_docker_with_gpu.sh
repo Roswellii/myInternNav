@@ -54,3 +54,10 @@ echo "      If --runtime=nvidia doesn't work, try --gpus all (which should be en
 
 
 
+
+
+
+
+
+
+

@@ -41,6 +41,7 @@ class HabitatEnv(base.Env):
         super().__init__(env_config, task_config)
 
         self.config = env_config.env_settings['habitat_config']
+        self.env_config = env_config  # Store for use in generate_episodes
         
         # 尝试创建环境，如果失败则尝试修改配置
         try:
@@ -87,8 +88,19 @@ class HabitatEnv(base.Env):
         - grouped by scene
         - filtered by done_res (the path is self.output_path/progress.json)
         - sharded by (rank, world_size)
+        - optionally filtered by specific episode (if filter_episodes is set)
         """
         all_episodes = []
+
+        # Check if we should filter to specific episodes
+        filter_episodes = self.env_config.env_settings.get('filter_episodes', None)
+        target_episodes = set()
+        if filter_episodes:
+            for ep in filter_episodes:
+                if isinstance(ep, dict):
+                    target_episodes.add((ep.get('scene_id'), ep.get('episode_id')))
+                elif isinstance(ep, tuple):
+                    target_episodes.add(ep)
 
         # group episodes by scene
         scene_episode_dict: Dict[str, List[Any]] = {}
@@ -114,8 +126,18 @@ class HabitatEnv(base.Env):
             # shard by rank index / world_size
             for episode in per_scene_eps[self.rank :: self.world_size]:
                 episode_id = int(episode.episode_id)
-                if (scene_id, episode_id) in done_res:
-                    continue
+                
+                # Filter by specific episodes if specified
+                if filter_episodes:
+                    # If filtering is enabled, only include target episodes
+                    if (scene_id, episode_id) not in target_episodes:
+                        continue
+                    # If it's a target episode, allow it even if already done (for re-evaluation)
+                else:
+                    # If not filtering, skip already done episodes
+                    if (scene_id, episode_id) in done_res:
+                        continue
+                
                 all_episodes.append(episode)
 
         return all_episodes

@@ -22,6 +22,11 @@ eval_cfg = EvalCfg(
         env_settings={
             # habitat sim specifications - agent, sensors, tasks, measures etc. are defined in the habitat config file
             'config_path': 'scripts/eval/configs/vln_r2r.yaml',
+            # Filter to specific episodes only
+            # Format: list of dicts with 'scene_id' and 'episode_id', or list of tuples (scene_id, episode_id)
+            'filter_episodes': [
+                {'scene_id': '2azQ1b91cZZ', 'episode_id': 71}
+            ],
         },
     ),
     eval_type='habitat_vln',
@@ -37,3 +42,4 @@ eval_cfg = EvalCfg(
         "dist_url": "env://",  # url for distributed setup
     },
 )
+

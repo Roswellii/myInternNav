@@ -96,3 +96,10 @@ print(f"Topdown min: {topdown_array.min()}, max: {topdown_array.max()}, mean: {t
 
 
 
+
+
+
+
+
+
+

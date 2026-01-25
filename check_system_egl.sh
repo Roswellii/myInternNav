@@ -78,3 +78,10 @@ echo "   python scripts/eval/eval.py --config scripts/eval/configs/habitat_dual_
 
 
 
+
+
+
+
+
+
+

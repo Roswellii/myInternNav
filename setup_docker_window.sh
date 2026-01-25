@@ -75,3 +75,10 @@ echo "  3. Use VNC or X11 forwarding via SSH"
 
 
 
+
+
+
+
+
+
+

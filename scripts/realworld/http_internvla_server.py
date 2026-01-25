@@ -169,7 +169,7 @@ def eval_dual():
     print(f"read http data cost {time.time() - start_time}")
 
     camera_pose = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-    instruction = "move forward until past the desk and turn left until you see a two doors. Exit this office from the nearest door.Do not go to the far door.  after you exit, turn right. move forward then turn to the hall way on you left and stop immediatelty"
+    instruction = "walk up the stairs to the next floor and stop."
     policy_init = data['reset']
     
     # Force reset on first request after server start
@@ -268,11 +268,11 @@ if __name__ == '__main__':
 
     # Start Flask in a separate thread so visualization can run in main thread
     flask_thread = threading.Thread(
-        target=lambda: app.run(host='172.20.10.6', port=5801, threaded=True, use_reloader=False),
+        target=lambda: app.run(host='192.168.123.22', port=5801, threaded=True, use_reloader=False),
         daemon=True
     )
     flask_thread.start()
-    print(f"Flask server started on http://172.20.10.6:5801")
+
     
     # Run visualization in main thread (required for matplotlib GUI)
     try:

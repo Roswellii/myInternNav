@@ -25,3 +25,10 @@ echo "DISPLAY: ${DISPLAY:-NOT SET}"
 
 
 
+
+
+
+
+
+
+
