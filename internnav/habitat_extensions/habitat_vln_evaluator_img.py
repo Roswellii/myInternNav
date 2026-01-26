@@ -897,11 +897,21 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                             placeholder = (DEFAULT_IMAGE_TOKEN + '\n') * len(history_id)
                             sources[0]["value"] += f' These are your historical observations: {placeholder}.'
 
-                        # Build input images from history and current observations
-                        history_id = sorted(history_id)
-                        print('history_idddddddd', step_id, history_id)
-                        input_images = [rgb_list[i] for i in history_id] + cur_images
-                        print(f"[evaluator] step_id {step_id} Total images: {len(input_images)}")
+                        # Add demo reference image prompt and image if available
+                        if hasattr(self, 'demo_image') and self.demo_image is not None:
+                            demo_img_resized = self.demo_image.resize((self.model_args.resize_w, self.model_args.resize_h))
+
+                            sources[0]["value"] += f' Navigation tip (from previous demonstration): you should pass the door on your right when you see {DEFAULT_IMAGE_TOKEN}.'
+                            # Insert demo image after history images but before current image
+                            history_id = sorted(history_id)
+                            print('history_idddddddd', step_id, history_id)
+                            input_images = [rgb_list[i] for i in history_id] + [demo_img_resized] + cur_images
+                            print(f"[evaluator] step_id {step_id} Added demo reference image to prompt, total images: {len(input_images)}")
+                        else:
+                            history_id = sorted(history_id)
+                            print('history_idddddddd', step_id, history_id)
+                            input_images = [rgb_list[i] for i in history_id] + cur_images
+                            print(f"[evaluator] step_id {step_id} Demo image NOT added")
                         input_img_id = 0
                     else:
                         assert action == 5

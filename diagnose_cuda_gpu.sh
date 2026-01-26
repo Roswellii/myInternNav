@@ -70,3 +70,4 @@ echo "  nvidia-smi  # Check if GPU is in use by other processes"
 
 
 
+

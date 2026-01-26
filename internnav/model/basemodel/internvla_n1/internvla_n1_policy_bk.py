@@ -10,7 +10,6 @@ import re
 import copy
 import itertools
 from collections import OrderedDict
-import os
 
 
 class InternVLAN1Net(PreTrainedModel):
@@ -53,29 +52,6 @@ class InternVLAN1Net(PreTrainedModel):
         prompt = f"You are an autonomous navigation assistant. Your task is to <instruction>. Where should you go next to stay on track? Please output the next waypoint\'s coordinates in the image. Please output STOP when you have successfully completed the task." 
         answer = ""
         self.conversation = [{"from": "human", "value": prompt}, {"from": "gpt", "value": answer}]
-        
-        # Load demo.jpg image for reference
-        # Try to find demo.jpg from multiple possible paths
-        current_file_dir = os.path.dirname(os.path.abspath(__file__))
-        # Go up to workspace root (internnav/model/basemodel/internvla_n1 -> workspace root is 4 levels up)
-        workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file_dir))))
-        demo_image_path = os.path.join(workspace_root, "logs", "habitat", "test_dual_system_0125_error4", "demo.jpg")
-
-        print(f"[init_prompts] Attempting to load demo image from: {demo_image_path}")
-        if os.path.exists(demo_image_path):
-            self.demo_image = Image.open(demo_image_path).convert('RGB')
-            print(f"[init_prompts] ✓ Successfully loaded demo reference image from {demo_image_path}, size={self.demo_image.size}")
-        else:
-            # Try relative path from current file (4 levels up)
-            relative_path = os.path.join(current_file_dir, "..", "..", "..", "..", "logs", "habitat", "test_dual_system_0125_error4", "demo.jpg")
-            demo_image_path = os.path.normpath(relative_path)
-            print(f"[init_prompts] First path not found, trying relative path: {demo_image_path}")
-            if os.path.exists(demo_image_path):
-                self.demo_image = Image.open(demo_image_path).convert('RGB')
-                print(f"[init_prompts] ✓ Successfully loaded demo reference image from {demo_image_path}, size={self.demo_image.size}")
-            else:
-                print(f"[init_prompts] ✗ Warning: demo.jpg not found at {demo_image_path}, demo reference image will not be used.")
-                self.demo_image = None
         
         self.conjunctions = [
                                 'you can see ',
@@ -130,7 +106,7 @@ class InternVLAN1Net(PreTrainedModel):
         # 2. Prepare input for the model
         if not look_down:
             # Clear conversation history when not looking down, provide normal image history and instruction
-            self.conversation_history = []
+            self.conversation_history = [] 
             # 2.1 instruction
             sources = copy.deepcopy(self.conversation)
             sources[0]["value"] = sources[0]["value"].replace('<instruction>.', instruction) # 配置基础对话模版和实际的任务指令
@@ -145,28 +121,9 @@ class InternVLAN1Net(PreTrainedModel):
                 placeholder = (self.DEFAULT_IMAGE_TOKEN + '\n') * len(history_id)
                 # 在指令文本中添加历史观察的描述
                 sources[0]["value"] += f' These are your historical observations: {placeholder}.'
-
-            print(f"[s2_step] step_id {self.episode_idx} hasattr(self, 'demo_image')={hasattr(self, 'demo_image')}, demo_image is None={self.demo_image is None if hasattr(self, 'demo_image') else 'N/A'}")
-            # Add demo reference image prompt and image
-            if hasattr(self, 'demo_image') and self.demo_image is not None:
-                # Resize demo image to match the expected size
-                demo_img_resized = self.demo_image.resize((self.resize_w, self.resize_h))
-                sources[0]["value"] += f' Navigation tip (from previous demonstration): you should pass the door on your right when you see {self.DEFAULT_IMAGE_TOKEN}.'
-                # Demo image will be added to input_images after history images
-                self.demo_image_resized = demo_img_resized
-                print(f"[s2_step] step_id {self.episode_idx} Added demo reference image to prompt")
-            else:
-                self.demo_image_resized = None
-                print(f"[s2_step] step_id {self.episode_idx} Demo image NOT added (demo_image unavailable)")
-
+            
             history_id = sorted(history_id)
-            # Add demo image to input_images if available
-            if self.demo_image_resized is not None:
-                self.input_images = [self.rgb_list[i] for i in history_id] + [self.demo_image_resized] + cur_images
-                print(f"[s2_step] step_id {self.episode_idx} input_images composition: {len(history_id)} history + 1 demo + {len(cur_images)} current = {len(self.input_images)} total")
-            else:
-                self.input_images = [self.rgb_list[i] for i in history_id] + cur_images
-                print(f"[s2_step] step_id {self.episode_idx} input_images composition: {len(history_id)} history + {len(cur_images)} current = {len(self.input_images)} total (NO demo)")
+            self.input_images = [self.rgb_list[i] for i in history_id] + cur_images
             input_img_id = 0
             self.episode_idx += 1  # Only increment when not looking down to maintain correspondence with rgb_list idx
         else:

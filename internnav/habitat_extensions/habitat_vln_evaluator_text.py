@@ -897,6 +897,9 @@ class HabitatVLNEvaluator(DistributedEvaluator):
                             placeholder = (DEFAULT_IMAGE_TOKEN + '\n') * len(history_id)
                             sources[0]["value"] += f' These are your historical observations: {placeholder}.'
 
+                        # Add fixed demo reference text prompt (no image)
+                        sources[0]["value"] += f' Navigation tip (from previous demonstration): Do not enter the kitchen.'
+                        
                         # Build input images from history and current observations
                         history_id = sorted(history_id)
                         print('history_idddddddd', step_id, history_id)
